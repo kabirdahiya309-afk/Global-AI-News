@@ -1,0 +1,5 @@
+{
+  "name": "Global AI News Autonomous Blog",
+  "description": "An autonomous blog that researches, writes, and posts AI news globally in the user's local language.",
+  "requestFramePermissions": ["geolocation"]
+}
