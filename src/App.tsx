@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import Markdown from 'react-markdown';
-import { Mail, MapPin, Sparkles, Globe, ChevronRight, Loader2, Lock, User, Star, ShieldCheck } from 'lucide-react';
+import { Mail, MapPin, Sparkles, Globe, ChevronRight, Loader2, Lock, User, Star, ShieldCheck, Film, X } from 'lucide-react';
 
 interface Post {
   id: number;
@@ -14,6 +14,7 @@ interface Post {
   created_at: string;
   is_premium: number;
   locked?: boolean;
+  trailer_path?: string;
 }
 
 interface UserData {
@@ -39,6 +40,8 @@ export default function App() {
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   
   const [authForm, setAuthForm] = useState({ email: '', password: '', interests: '', language: navigator.language });
+  const [trailerUrl, setTrailerUrl] = useState<string | null>(null);
+  const [trailerLoading, setTrailerLoading] = useState<number | null>(null);
 
   useEffect(() => {
     if (token) {
@@ -156,6 +159,20 @@ export default function App() {
       console.error('Failed to trigger generation', error);
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const handleWatchTrailer = async (postId: number) => {
+    setTrailerLoading(postId);
+    try {
+      const res = await fetch(`/api/posts/${postId}/trailer`);
+      const data = await res.json();
+      if (res.ok) setTrailerUrl(data.trailerUrl);
+      else console.error(data.error || 'Failed to generate trailer');
+    } catch (e) {
+      console.error('Trailer request failed', e);
+    } finally {
+      setTrailerLoading(null);
     }
   };
 
@@ -280,6 +297,18 @@ export default function App() {
                         <Markdown>{posts[0].content}</Markdown>
                       </div>
                     )}
+                    <div className="mt-6 pt-6 border-t border-zinc-100">
+                      <button
+                        onClick={() => handleWatchTrailer(posts[0].id)}
+                        disabled={trailerLoading === posts[0].id}
+                        className="inline-flex items-center gap-2 bg-zinc-900 text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-zinc-700 transition-colors disabled:opacity-60"
+                      >
+                        {trailerLoading === posts[0].id
+                          ? <Loader2 className="w-4 h-4 animate-spin" />
+                          : <Film className="w-4 h-4" />}
+                        {trailerLoading === posts[0].id ? 'Generating trailer…' : 'Watch Trailer'}
+                      </button>
+                    </div>
                   </div>
                 </article>
               )}
@@ -329,12 +358,24 @@ export default function App() {
                             <Markdown>{post.content}</Markdown>
                           </div>
                         )}
-                        <button 
-                          onClick={() => post.locked ? setShowPricingModal(true) : null}
-                          className="text-sm font-medium text-zinc-900 flex items-center gap-1 hover:text-zinc-600 transition-colors mt-auto"
-                        >
-                          {post.locked ? 'Unlock Story' : 'Read full story'} <ChevronRight className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center gap-3 mt-auto">
+                          <button
+                            onClick={() => post.locked ? setShowPricingModal(true) : null}
+                            className="text-sm font-medium text-zinc-900 flex items-center gap-1 hover:text-zinc-600 transition-colors"
+                          >
+                            {post.locked ? 'Unlock Story' : 'Read full story'} <ChevronRight className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleWatchTrailer(post.id)}
+                            disabled={trailerLoading === post.id}
+                            className="ml-auto inline-flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-800 transition-colors disabled:opacity-50"
+                          >
+                            {trailerLoading === post.id
+                              ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              : <Film className="w-3.5 h-3.5" />}
+                            Trailer
+                          </button>
+                        </div>
                       </div>
                     </article>
                   ))}
@@ -416,6 +457,28 @@ export default function App() {
           )}
         </aside>
       </main>
+
+      {/* Trailer Modal */}
+      {trailerUrl && (
+        <div className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-4">
+          <div className="relative w-full max-w-5xl">
+            <button
+              onClick={() => setTrailerUrl(null)}
+              className="absolute -top-10 right-0 flex items-center gap-1.5 text-white/50 hover:text-white text-sm transition-colors"
+            >
+              <X className="w-4 h-4" /> Close
+            </button>
+            <div className="aspect-video w-full rounded-xl overflow-hidden bg-black shadow-2xl">
+              <iframe
+                src={trailerUrl}
+                className="w-full h-full border-0"
+                allow="autoplay"
+                title="Article Trailer"
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Auth Modal */}
       {showAuthModal && (
